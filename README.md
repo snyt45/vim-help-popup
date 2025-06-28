@@ -22,7 +22,7 @@ A customizable popup help system for Vim that displays your commands and shortcu
 
 ## Requirements
 
-- Vim 8.2+ with popup support
+- Vim 9.0+ with vim9script support
 - `+popupwin` feature
 
 ## Installation
@@ -33,12 +33,22 @@ A customizable popup help system for Vim that displays your commands and shortcu
 Plug 'snyt45/vim-help-popup'
 ```
 
+### Compatibility Check
+
+You can check if your Vim supports the required features:
+
+```vim
+:echo has('vim9script') && has('popupwin')
+```
+
+If it returns 0, you need to upgrade your Vim to version 9.0 or later.
+
 ## Usage
 ### 1. Define your help content in your vimrc
 
 ```vim
 " Define your help content
-let g:help_popup_content = {
+g:help_popup_content = {
   \ 'file': {
   \   'title': 'File Operations',
   \   'items': [
@@ -80,7 +90,7 @@ nnoremap <leader>?b :HelpPopupShow buffer<CR>
 Here's a complete example with common Vim operations:
 
 ```vim
-let g:help_popup_content = {
+g:help_popup_content = {
   \ 'file': {
   \   'title': 'File Operations',
   \   'items': [

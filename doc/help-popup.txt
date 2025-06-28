@@ -29,12 +29,15 @@ display your personal Vim command reference. It features:
 ==============================================================================
 2. REQUIREMENTS                                        *help-popup-requirements*
 
-- Vim 8.2 or later
+- Vim 9.0 or later
 - |+popupwin| feature
 - vim9script support
 
 You can check if your Vim supports these features: >
-    :echo has('popupwin') && has('vim9script')
+    :echo has('vim9script') && has('popupwin')
+
+
+If you're using Vim 8.2, you'll need to upgrade to Vim 9.0 or later.
 
 
 ==============================================================================

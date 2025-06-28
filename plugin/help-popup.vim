@@ -3,16 +3,21 @@ vim9script
 # ==============================================================================
 # Vim Help Popup Plugin
 # ==============================================================================
+# Check Vim version and features
+if !has('vim9script')
+  finish
+endif
+
+if !has('popupwin')
+  echoerr 'vim-help-popup: +popupwin feature is required'
+  finish
+endif
 
 # Prevent loading twice
 if exists('g:loaded_help_popup')
   finish
 endif
 g:loaded_help_popup = 1
-
-# Save compatible options
-var save_cpo = &cpo
-set cpo&vim
 
 # ==============================================================================
 # Internal Functions
