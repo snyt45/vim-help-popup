@@ -4,6 +4,13 @@ A customizable popup help system for Vim that displays your commands and shortcu
 
 ![Demo](https://user-images.githubusercontent.com/your-username/vim-help-popup/demo.gif)
 
+## ⚠️ Experimental Project Notice
+
+> 🤖 **This plugin was created by AI as an experimental project.**
+> 
+> 🚧 **Breaking changes may occur at any time without notice.**
+> 
+> 🔬 **Use at your own risk in production environments.**
 ## Features
 
 - 📖 Display your custom help content in formatted tables
