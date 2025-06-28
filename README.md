@@ -30,7 +30,7 @@ A customizable popup help system for Vim that displays your commands and shortcu
 ### Using [vim-plug](https://github.com/junegunn/vim-plug)
 
 ```vim
-Plug 'your-username/vim-help-popup'
+Plug 'snyt45/vim-help-popup'
 ```
 
 ## Usage
