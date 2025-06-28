@@ -1,0 +1,152 @@
+*help-popup.txt*  A customizable popup help system for Vim
+
+Author:  Your Name <your-email@example.com>
+License: MIT License
+
+==============================================================================
+CONTENTS                                                   *help-popup-contents*
+
+    1. Introduction ....................................... |help-popup-intro|
+    2. Requirements ................................. |help-popup-requirements|
+    3. Installation ................................. |help-popup-installation|
+    4. Usage ................................................. |help-popup-usage|
+    5. Configuration ................................. |help-popup-configuration|
+    6. Commands ......................................... |help-popup-commands|
+    7. Mappings ......................................... |help-popup-mappings|
+    8. Examples ......................................... |help-popup-examples|
+
+==============================================================================
+1. INTRODUCTION                                              *help-popup-intro*
+
+vim-help-popup provides a beautiful and customizable popup window system to
+display your personal Vim command reference. It features:
+
+- Formatted table display with box-drawing characters
+- Section-based organization
+- Scrollable popup windows
+- Multi-byte character support
+
+==============================================================================
+2. REQUIREMENTS                                        *help-popup-requirements*
+
+- Vim 8.2 or later
+- |+popupwin| feature
+- vim9script support
+
+You can check if your Vim supports these features: >
+    :echo has('popupwin') && has('vim9script')
+
+
+==============================================================================
+3. INSTALLATION                                        *help-popup-installation*
+
+Using vim-plug (https://github.com/junegunn/vim-plug): >
+    Plug 'your-username/vim-help-popup'
+
+
+Using native Vim packages: >
+    git clone https://github.com/your-username/vim-help-popup.git \
+      ~/.vim/pack/plugins/start/vim-help-popup
+
+
+==============================================================================
+4. USAGE                                                     *help-popup-usage*
+
+1. Define your help content in |g:help_popup_content|
+2. Use |:HelpPopupIndex| to show the index
+3. Use |:HelpPopupShow| to show specific sections
+
+Navigation in popup windows:
+- `j` or `<Down>`: Scroll down one line
+- `k` or `<Up>`: Scroll up one line
+- `<C-d>`: Scroll down half page
+- `<C-u>`: Scroll up half page
+- `G`: Go to bottom
+- `gg`: Go to top
+- `q` or `<Esc>`: Close popup
+
+==============================================================================
+5. CONFIGURATION                                      *help-popup-configuration*
+
+                                                        *g:help_popup_content*
+g:help_popup_content ~
+    Dictionary containing your help sections. Each section should have:
+    - 'title': The section title (string)
+    - 'items': List of items, each with:
+      - 'command': The command or mapping (string)
+      - 'description': Short description (string)
+      - 'notes': Additional notes (string)
+
+    Example: >
+        let g:help_popup_content = {
+          \ 'file': {
+          \   'title': 'File Operations',
+          \   'items': [
+          \     {'command': ':e', 'description': 'Edit file', 
+          \      'notes': 'Opens a file'},
+          \   ]
+          \ }
+          \}
+
+
+==============================================================================
+6. COMMANDS                                              *help-popup-commands*
+
+                                                            *:HelpPopupIndex*
+:HelpPopupIndex
+    Show the help index popup with all available sections.
+
+                                                             *:HelpPopupShow*
+:HelpPopupShow {section}
+    Show a specific help section. {section} should be a key from
+    |g:help_popup_content|.
+
+    Example: >
+        :HelpPopupShow file
+
+
+==============================================================================
+7. MAPPINGS                                              *help-popup-mappings*
+
+This plugin doesn't provide default mappings. Here are recommended mappings
+to add to your vimrc: >
+
+    nnoremap <leader>? :HelpPopupIndex<CR>
+    nnoremap <leader>?f :HelpPopupShow file<CR>
+    nnoremap <leader>?b :HelpPopupShow buffer<CR>
+
+
+==============================================================================
+8. EXAMPLES                                              *help-popup-examples*
+
+Complete example configuration: >
+
+    let g:help_popup_content = {
+      \ 'file': {
+      \   'title': 'File Operations',
+      \   'items': [
+      \     {'command': ':e **/*<Tab>', 'description': 'Find files', 
+      \      'notes': 'With completion'},
+      \     {'command': 'gf', 'description': 'Goto file', 
+      \      'notes': 'Under cursor'},
+      \   ]
+      \ },
+      \ 'window': {
+      \   'title': 'Window Management',
+      \   'items': [
+      \     {'command': '<C-w>s', 'description': 'Split horizontal', 
+      \      'notes': 'Split window'},
+      \     {'command': '<C-w>v', 'description': 'Split vertical', 
+      \      'notes': 'Vsplit window'},
+      \   ]
+      \ }
+      \}
+
+    " Mappings
+    nnoremap <leader>? :HelpPopupIndex<CR>
+    nnoremap <leader>?f :HelpPopupShow file<CR>
+    nnoremap <leader>?w :HelpPopupShow window<CR>
+
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
