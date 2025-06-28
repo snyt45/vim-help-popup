@@ -1,6 +1,6 @@
 *help-popup.txt*  A customizable popup help system for Vim
 
-Author:  Your Name <your-email@example.com>
+Author:  Yuta Sano <snyt45@egmail.com>
 License: MIT License
 
 ==============================================================================
