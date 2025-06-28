@@ -19,6 +19,10 @@ if exists('g:loaded_help_popup')
 endif
 g:loaded_help_popup = 1
 
+# Save compatible optionsAdd commentMore actions
+var save_cpo = &cpo
+set cpo&vim
+
 # ==============================================================================
 # Internal Functions
 # ==============================================================================
