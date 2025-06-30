@@ -2,14 +2,23 @@ vim9script
 
 # ==============================================================================
 # Vim Help Popup Plugin
+# A modern, customizable popup help system for Vim
 # ==============================================================================
+
+# Plugin metadata
+const PLUGIN_NAME = 'vim-help-popup'
+const REQUIRED_VIM_VERSION = '9.0'
+const POPUP_WIDTH = 80
+const CONTENT_WIDTH = 78
+
 # Check Vim version and features
 if !has('vim9script')
+  echoerr $'{PLUGIN_NAME}: Vim {REQUIRED_VIM_VERSION}+ with vim9script is required'
   finish
 endif
 
 if !has('popupwin')
-  echoerr 'vim-help-popup: +popupwin feature is required'
+  echoerr $'{PLUGIN_NAME}: +popupwin feature is required'
   finish
 endif
 
@@ -19,12 +28,15 @@ if exists('g:loaded_help_popup')
 endif
 g:loaded_help_popup = 1
 
-# Save compatible optionsAdd commentMore actions
+# Save compatible options
 var save_cpo = &cpo
 set cpo&vim
 
+# Script-local variables
+var help_g_pressed = false
+
 # ==============================================================================
-# Internal Functions
+# Utility Functions
 # ==============================================================================
 
 # Calculate display width accurately for multi-byte characters
@@ -32,7 +44,7 @@ def GetDisplayWidth(str: string): number
   return strdisplaywidth(str)
 enddef
 
-# Pad string to specified width
+# Pad string to specified width with spaces
 def PadString(str: string, width: number): string
   var current_width = GetDisplayWidth(str)
   if current_width >= width
@@ -41,136 +53,355 @@ def PadString(str: string, width: number): string
   return str .. repeat(' ', width - current_width)
 enddef
 
-# Format help section into table
-def FormatHelpSection(section_data: dict<any>): list<string>
+# Create a line with proper box border and padding
+def CreateBoxLine(content: string, total_width: number): string
+  var content_width = total_width - 2  # Account for │ on both sides
+  var padding = content_width - GetDisplayWidth(content)
+  return '│' .. content .. repeat(' ', max([0, padding])) .. '│'
+enddef
+
+# Create separator lines for box design
+def CreateBoxSeparator(char: string, total_width: number): string
+  return repeat(char, total_width - 2)
+enddef
+
+# ==============================================================================
+# Text Processing Functions
+# ==============================================================================
+
+# Wrap text with proper indentation and box formatting
+def WrapTextInBox(prefix: string, text: string, max_width: number): list<string>
+  if empty(text)
+    return []
+  endif
+  
   var lines: list<string> = []
+  var content_width = max_width - 2  # Reserve space for box borders
+  var available_width = content_width - GetDisplayWidth(prefix)
   
-  # Calculate column widths
-  var cmd_width = 16
-  var desc_width = 14
-  var notes_width = 34
-  
-  # Adjust widths based on content
-  for item in section_data.items
-    cmd_width = max([cmd_width, GetDisplayWidth(item.command)])
-    desc_width = max([desc_width, GetDisplayWidth(item.description)])
-    notes_width = max([notes_width, GetDisplayWidth(item.notes)])
-  endfor
-  
-  # Consider header widths
-  cmd_width = max([cmd_width, GetDisplayWidth('Command')])
-  desc_width = max([desc_width, GetDisplayWidth('Description')])
-  notes_width = max([notes_width, GetDisplayWidth('Notes')])
-  
-  # Total width
-  var total_width = cmd_width + desc_width + notes_width + 10
-  
-  # Title row
-  add(lines, '╔' .. repeat('═', total_width - 2) .. '╗')
-  var title_padding = (total_width - 2 - GetDisplayWidth(section_data.title)) / 2
-  add(lines, '║' .. repeat(' ', title_padding) .. section_data.title .. 
-             repeat(' ', total_width - 2 - title_padding - GetDisplayWidth(section_data.title)) .. '║')
-  
-  # Header separator
-  add(lines, '╠' .. repeat('═', cmd_width + 2) .. '╪' .. 
-             repeat('═', desc_width + 2) .. '╪' .. 
-             repeat('═', notes_width + 2) .. '╣')
-  
-  # Header row
-  add(lines, '║ ' .. PadString('Command', cmd_width) .. ' │ ' .. 
-             PadString('Description', desc_width) .. ' │ ' .. 
-             PadString('Notes', notes_width) .. ' ║')
-  
-  # Header bottom separator
-  add(lines, '╠' .. repeat('═', cmd_width + 2) .. '╪' .. 
-             repeat('═', desc_width + 2) .. '╪' .. 
-             repeat('═', notes_width + 2) .. '╣')
-  
-  # Data rows
-  for item in section_data.items
-    add(lines, '║ ' .. PadString(item.command, cmd_width) .. ' │ ' .. 
-               PadString(item.description, desc_width) .. ' │ ' .. 
-               PadString(item.notes, notes_width) .. ' ║')
-  endfor
-  
-  # Footer
-  add(lines, '╚' .. repeat('═', cmd_width + 2) .. '╧' .. 
-             repeat('═', desc_width + 2) .. '╧' .. 
-             repeat('═', notes_width + 2) .. '╝')
+  if GetDisplayWidth(text) <= available_width
+    # Text fits on single line
+    var content = prefix .. text
+    add(lines, CreateBoxLine(content, max_width))
+  else
+    # Text needs wrapping
+    var remaining_text = text
+    var is_first_line = true
+    
+    while !empty(remaining_text)
+      var line_prefix = is_first_line ? prefix : repeat(' ', GetDisplayWidth(prefix))
+      var line_width = content_width - GetDisplayWidth(line_prefix)
+      var break_point = FindTextBreakPoint(remaining_text, line_width)
+      
+      var line_text = remaining_text[0 : break_point - 1]
+      var content = line_prefix .. line_text
+      add(lines, CreateBoxLine(content, max_width))
+      
+      remaining_text = remaining_text[break_point :]
+      is_first_line = false
+    endwhile
+  endif
   
   return lines
 enddef
 
-# Popup filter for scrolling
+# Find appropriate break point for text wrapping
+def FindTextBreakPoint(text: string, max_width: number): number
+  var break_point = 0
+  var display_width = 0
+  var char_idx = 0
+  
+  while char_idx < strlen(text)
+    var char = text[char_idx]
+    var char_width = GetDisplayWidth(char)
+    if display_width + char_width > max_width
+      break
+    endif
+    display_width += char_width
+    char_idx += 1
+    break_point = char_idx
+  endwhile
+  
+  # Ensure at least one character is included
+  return max([1, break_point])
+enddef
+
+# ==============================================================================
+# Content Formatting Functions
+# ==============================================================================
+
+# Format individual help section with clean styling
+def FormatHelpSection(section_data: dict<any>): list<string>
+  if !has_key(section_data, 'title') || !has_key(section_data, 'items')
+    return []
+  endif
+  
+  var lines: list<string> = []
+  
+  # Create section header
+  extend(lines, CreateSectionHeader(section_data.title))
+  
+  # Process each item in the section
+  for item in section_data.items
+    extend(lines, FormatHelpItem(item))
+  endfor
+  
+  # Create section footer
+  extend(lines, CreateSectionFooter())
+  
+  return lines
+enddef
+
+# Create section header with title
+def CreateSectionHeader(title: string): list<string>
+  var lines: list<string> = []
+  var title_len = GetDisplayWidth(title)
+  var header_dashes = CONTENT_WIDTH - 3 - title_len  # Account for "┌─ "
+  
+  if header_dashes < 0
+    header_dashes = 0
+  endif
+  
+  add(lines, '┌─ ' .. title .. ' ' .. repeat('─', header_dashes) .. '┐')
+  add(lines, CreateBoxLine('', POPUP_WIDTH))
+  
+  return lines
+enddef
+
+# Format individual help item (command, description, notes)
+def FormatHelpItem(item: dict<any>): list<string>
+  var lines: list<string> = []
+  
+  # Validate item structure
+  if !has_key(item, 'command') || !has_key(item, 'description')
+    return lines
+  endif
+  
+  # Format command with minimal indentation
+  extend(lines, WrapTextInBox('  ', item.command, POPUP_WIDTH))
+  
+  # Format description with deeper indentation
+  extend(lines, WrapTextInBox('    ', item.description, POPUP_WIDTH))
+  
+  # Format optional notes with deepest indentation
+  if has_key(item, 'notes') && !empty(item.notes)
+    extend(lines, WrapTextInBox('      ', item.notes, POPUP_WIDTH))
+  endif
+  
+  # Add spacing between items
+  add(lines, CreateBoxLine('', POPUP_WIDTH))
+  
+  return lines
+enddef
+
+# Create section footer
+def CreateSectionFooter(): list<string>
+  var lines: list<string> = []
+  add(lines, '└' .. CreateBoxSeparator('─', POPUP_WIDTH) .. '┘')
+  add(lines, '')
+  return lines
+enddef
+
+# ==============================================================================
+# Navigation and Input Handling
+# ==============================================================================
+
+# Main popup filter for handling all key inputs
 def HelpPopupFilter(winid: number, key: string): bool
-  if key == 'q' || key == "\<Esc>"
-    popup_close(winid)
-    return true
-  elseif key == 'j' || key == "\<Down>"
-    win_execute(winid, "normal! \<C-e>")
-    return true
-  elseif key == 'k' || key == "\<Up>"
-    win_execute(winid, "normal! \<C-y>")
-    return true
-  elseif key == "\<C-d>" || key == "\<PageDown>"
-    win_execute(winid, "normal! \<C-d>")
-    return true
-  elseif key == "\<C-u>" || key == "\<PageUp>"
-    win_execute(winid, "normal! \<C-u>")
-    return true
-  elseif key == 'G'
-    win_execute(winid, "normal! G")
-    return true
-  elseif key == 'g'
-    g:help_g_pressed = true
-    return true
-  elseif get(g:, 'help_g_pressed', false) && key == 'g'
-    win_execute(winid, "normal! gg")
-    g:help_g_pressed = false
+  # Handle exit keys
+  if HandleExitKeys(key, winid)
     return true
   endif
   
-  if exists('g:help_g_pressed')
-    g:help_g_pressed = false
+  # Handle navigation keys
+  if HandleNavigationKeys(key, winid)
+    return true
+  endif
+  
+  # Handle special keys (gg command)
+  if HandleSpecialKeys(key, winid)
+    return true
+  endif
+  
+  # Reset any pending states for unhandled keys
+  ResetPendingStates()
+  
+  return false
+enddef
+
+# Handle exit/close keys
+def HandleExitKeys(key: string, winid: number): bool
+  if key == 'q' || key == "\<Esc>"
+    popup_close(winid)
+    return true
+  endif
+  return false
+enddef
+
+# Handle navigation and scrolling keys
+def HandleNavigationKeys(key: string, winid: number): bool
+  var navigation_map = {
+    'j': "\<C-e>",
+    "\<Down>": "\<C-e>",
+    'k': "\<C-y>",
+    "\<Up>": "\<C-y>",
+    "\<C-d>": "\<C-d>",
+    "\<C-u>": "\<C-u>",
+    "\<C-f>": "\<C-f>",
+    "\<PageDown>": "\<C-f>",
+    "\<C-b>": "\<C-b>",
+    "\<PageUp>": "\<C-b>",
+    'G': 'G'
+  }
+  
+  if has_key(navigation_map, key)
+    win_execute(winid, $'normal! {navigation_map[key]}')
+    return true
   endif
   
   return false
 enddef
 
+# Handle special key combinations (like gg)
+def HandleSpecialKeys(key: string, winid: number): bool
+  if key == 'g'
+    return HandleGCommand(winid)
+  endif
+  return false
+enddef
+
+# Handle the 'gg' command (go to top)
+def HandleGCommand(winid: number): bool
+  if help_g_pressed
+    # Second 'g' pressed - execute gg command
+    win_execute(winid, 'normal! gg')
+    help_g_pressed = false
+  else
+    # First 'g' pressed - wait for second
+    help_g_pressed = true
+    timer_start(1000, function('ResetGPressed'))
+  endif
+  return true
+enddef
+
+# Reset any pending command states
+def ResetPendingStates(): void
+  if help_g_pressed
+    help_g_pressed = false
+  endif
+enddef
+
+# Timer callback to reset g command state
+def ResetGPressed(timer_id: number): void
+  help_g_pressed = false
+enddef
+
 # ==============================================================================
-# Public Functions
+# Main Plugin Interface
 # ==============================================================================
 
-# Show help section
-def g:HelpPopupShow(section: string): void
+# Main help popup function - displays all help content
+def g:HelpPopup(): void
+  # Validate configuration
+  if !ValidateConfiguration()
+    return
+  endif
+  
+  # Build popup content
+  var content_lines = BuildPopupContent()
+  
+  # Create and display popup
+  var popup_options = CreatePopupOptions()
+  popup_create(content_lines, popup_options)
+enddef
+
+# ==============================================================================
+# Content Building Functions
+# ==============================================================================
+
+# Validate user configuration
+def ValidateConfiguration(): bool
   if !exists('g:help_popup_content')
-    echo "Error: g:help_popup_content is not defined. Please define your help content."
-    return
+    echohl ErrorMsg
+    echo $'{PLUGIN_NAME}: g:help_popup_content is not defined. Please define your help content.'
+    echohl None
+    return false
   endif
   
-  if !has_key(g:help_popup_content, section)
-    echo "Unknown help section: " .. section
-    return
+  if type(g:help_popup_content) != v:t_dict
+    echohl ErrorMsg
+    echo $'{PLUGIN_NAME}: g:help_popup_content must be a dictionary'
+    echohl None
+    return false
   endif
   
-  # Generate content
-  var content = FormatHelpSection(g:help_popup_content[section])
-  add(content, '')
-  add(content, '  j/k: scroll  │  C-d/C-u: page  │  G/gg: bottom/top  │  q/ESC: close')
+  return true
+enddef
+
+# Build complete popup content
+def BuildPopupContent(): list<string>
+  var all_lines: list<string> = []
   
-  # Calculate popup size
-  var max_height = float2nr(&lines * 0.8)
-  var max_width = float2nr(&columns * 0.9)
+  # Add header with navigation help
+  extend(all_lines, CreatePopupHeader())
   
-  # Popup options
-  var opts = {
+  # Add all help sections
+  var sections = keys(g:help_popup_content)
+  for section_key in sections
+    var section_data = g:help_popup_content[section_key]
+    extend(all_lines, FormatHelpSection(section_data))
+  endfor
+  
+  return all_lines
+enddef
+
+# Create popup header with navigation information
+def CreatePopupHeader(): list<string>
+  var lines: list<string> = []
+  
+  # Header border
+  add(lines, '┌' .. CreateBoxSeparator('─', POPUP_WIDTH) .. '┐')
+  
+  # Title line - centered
+  var title_text = '» Help Commands «'
+  add(lines, CreateCenteredBoxLine(title_text, POPUP_WIDTH))
+  
+  # Separator
+  add(lines, '├' .. CreateBoxSeparator('─', POPUP_WIDTH) .. '┤')
+  
+  # Navigation help
+  var nav_text = 'Navigation: j/k ↓↑  •  Scroll: C-d/u C-f/b  •  Jump: G/gg  •  Exit: q'
+  add(lines, CreateBoxLine(' ' .. nav_text, POPUP_WIDTH))
+  
+  # Footer border
+  add(lines, '└' .. CreateBoxSeparator('─', POPUP_WIDTH) .. '┘')
+  
+  # Spacing
+  add(lines, '')
+  add(lines, '')
+  
+  return lines
+enddef
+
+# Create centered text line within box
+def CreateCenteredBoxLine(text: string, total_width: number): string
+  var content_width = total_width - 2
+  var text_width = GetDisplayWidth(text)
+  var padding_left = (content_width - text_width) / 2
+  var padding_right = content_width - text_width - padding_left
+  return '│' .. repeat(' ', padding_left) .. text .. repeat(' ', padding_right) .. '│'
+enddef
+
+# Create popup window options
+def CreatePopupOptions(): dict<any>
+  var max_height = (&lines * 8) / 10
+  
+  return {
     line: 'cursor+1',
     col: 'cursor',
     pos: 'center',
+    width: POPUP_WIDTH,
     maxheight: max_height,
-    maxwidth: max_width,
-    minwidth: 60,
-    minheight: 10,
     border: [],
     padding: [0, 1, 0, 1],
     scrollbar: 1,
@@ -181,79 +412,13 @@ def g:HelpPopupShow(section: string): void
     filter: HelpPopupFilter,
     firstline: 1,
   }
-  
-  popup_create(content, opts)
-enddef
-
-# Show help index
-def g:HelpPopupIndex(): void
-  if !exists('g:help_popup_content')
-    echo "Error: g:help_popup_content is not defined. Please define your help content."
-    return
-  endif
-  
-  var sections = keys(g:help_popup_content)
-  var index_lines: list<string> = []
-  
-  # Generate index dynamically
-  add(index_lines, '╔════════════════════════════════════════════════════════════════╗')
-  add(index_lines, '║                      Vim Help Index                             ║')
-  add(index_lines, '╠════════════════════════════════════════════════════════════════╣')
-  
-  var idx = 1
-  for section in sort(sections)
-    var title = g:help_popup_content[section].title
-    var key_hint = exists('g:help_popup_mappings') && has_key(g:help_popup_mappings, section) 
-                   ? printf('(%s)', g:help_popup_mappings[section]) 
-                   : ''
-    var line_content = printf('  %d. %-25s %-20s', idx, title, key_hint)
-    add(index_lines, '║' .. PadString(line_content, 64) .. '║')
-    idx += 1
-  endfor
-  
-  add(index_lines, '╠════════════════════════════════════════════════════════════════╣')
-  add(index_lines, '║         Press number key to show section                        ║')
-  add(index_lines, '║              Press q or ESC to close                            ║')
-  add(index_lines, '╚════════════════════════════════════════════════════════════════╝')
-  
-  var opts = {
-    line: 'cursor+1',
-    col: 'cursor',
-    pos: 'center',
-    border: [],
-    padding: [0, 1, 0, 1],
-    highlight: 'Normal',
-    borderhighlight: ['Comment'],
-    mapping: false,
-    filter: HelpIndexFilter,
-  }
-  
-  g:help_index_popup = popup_create(index_lines, opts)
-enddef
-
-# Index filter function
-def HelpIndexFilter(winid: number, key: string): bool
-  if key == 'q' || key == "\<Esc>"
-    popup_close(winid)
-    return true
-  elseif key >= '1' && key <= '9'
-    popup_close(winid)
-    var sections = sort(keys(g:help_popup_content))
-    var index = str2nr(key) - 1
-    if index < len(sections)
-      g:HelpPopupShow(sections[index])
-    endif
-    return true
-  endif
-  return false
 enddef
 
 # ==============================================================================
 # Commands
 # ==============================================================================
 
-command! -nargs=0 HelpPopupIndex call g:HelpPopupIndex()
-command! -nargs=1 HelpPopupShow call g:HelpPopupShow(<q-args>)
+command! -nargs=0 HelpPopup call g:HelpPopup()
 
 # Restore compatible options
 &cpo = save_cpo

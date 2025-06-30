@@ -1,7 +1,8 @@
-*help-popup.txt*  A customizable popup help system for Vim
+*help-popup.txt*  A modern popup help system for Vim
 
-Author:  Yuta Sano <snyt45@egmail.com>
+Author:  Yuta Sano <snyt45@gmail.com>
 License: MIT License
+Version: 2.0
 
 ==============================================================================
 CONTENTS                                                   *help-popup-contents*
@@ -14,17 +15,21 @@ CONTENTS                                                   *help-popup-contents*
     6. Commands ......................................... |help-popup-commands|
     7. Mappings ......................................... |help-popup-mappings|
     8. Examples ......................................... |help-popup-examples|
+    9. Customization ................................... |help-popup-customization|
 
 ==============================================================================
 1. INTRODUCTION                                              *help-popup-intro*
 
-vim-help-popup provides a beautiful and customizable popup window system to
+vim-help-popup provides a modern and customizable popup window system to
 display your personal Vim command reference. It features:
 
-- Formatted table display with box-drawing characters
+- Clean, minimal box-style layout with proper text wrapping
+- Fixed 80-character width for consistent display
+- Smart navigation with full keyboard support
+- Intelligent text wrapping that preserves layout
+- Multi-byte character support (CJK friendly)
 - Section-based organization
-- Scrollable popup windows
-- Multi-byte character support
+- Fast performance with vim9script
 
 ==============================================================================
 2. REQUIREMENTS                                        *help-popup-requirements*
@@ -36,34 +41,31 @@ display your personal Vim command reference. It features:
 You can check if your Vim supports these features: >
     :echo has('vim9script') && has('popupwin')
 
-
-If you're using Vim 8.2, you'll need to upgrade to Vim 9.0 or later.
-
+If you're using Vim 8.x, you'll need to upgrade to Vim 9.0 or later.
 
 ==============================================================================
 3. INSTALLATION                                        *help-popup-installation*
 
 Using vim-plug (https://github.com/junegunn/vim-plug): >
-    Plug 'your-username/vim-help-popup'
-
+    Plug 'snyt45/vim-help-popup'
 
 Using native Vim packages: >
-    git clone https://github.com/your-username/vim-help-popup.git \
+    git clone https://github.com/snyt45/vim-help-popup.git \
       ~/.vim/pack/plugins/start/vim-help-popup
-
 
 ==============================================================================
 4. USAGE                                                     *help-popup-usage*
 
 1. Define your help content in |g:help_popup_content|
-2. Use |:HelpPopupIndex| to show the index
-3. Use |:HelpPopupShow| to show specific sections
+2. Use |:HelpPopup| to display all sections
 
 Navigation in popup windows:
 - `j` or `<Down>`: Scroll down one line
 - `k` or `<Up>`: Scroll up one line
 - `<C-d>`: Scroll down half page
 - `<C-u>`: Scroll up half page
+- `<C-f>` or `<PageDown>`: Scroll down full page
+- `<C-b>` or `<PageUp>`: Scroll up full page
 - `G`: Go to bottom
 - `gg`: Go to top
 - `q` or `<Esc>`: Close popup
@@ -78,7 +80,7 @@ g:help_popup_content ~
     - 'items': List of items, each with:
       - 'command': The command or mapping (string)
       - 'description': Short description (string)
-      - 'notes': Additional notes (string)
+      - 'notes': Additional notes (string, optional)
 
     Example: >
         let g:help_popup_content = {
@@ -86,70 +88,141 @@ g:help_popup_content ~
           \   'title': 'File Operations',
           \   'items': [
           \     {'command': ':e', 'description': 'Edit file', 
-          \      'notes': 'Opens a file'},
+          \      'notes': 'Opens a file for editing'},
           \   ]
           \ }
           \}
 
-
 ==============================================================================
 6. COMMANDS                                              *help-popup-commands*
 
-                                                            *:HelpPopupIndex*
-:HelpPopupIndex
-    Show the help index popup with all available sections.
-
-                                                             *:HelpPopupShow*
-:HelpPopupShow {section}
-    Show a specific help section. {section} should be a key from
-    |g:help_popup_content|.
-
-    Example: >
-        :HelpPopupShow file
-
+                                                               *:HelpPopup*
+:HelpPopup
+    Display all help sections in a single, scrollable popup window.
+    This is the only command provided by the plugin.
 
 ==============================================================================
 7. MAPPINGS                                              *help-popup-mappings*
 
-This plugin doesn't provide default mappings. Here are recommended mappings
+This plugin doesn't provide default mappings. Here is a recommended mapping
 to add to your vimrc: >
 
-    nnoremap <leader>? :HelpPopupIndex<CR>
-    nnoremap <leader>?f :HelpPopupShow file<CR>
-    nnoremap <leader>?b :HelpPopupShow buffer<CR>
-
+    nnoremap <leader>? :HelpPopup<CR>
 
 ==============================================================================
 8. EXAMPLES                                              *help-popup-examples*
 
-Complete example configuration: >
+Basic configuration: >
 
     let g:help_popup_content = {
       \ 'file': {
       \   'title': 'File Operations',
       \   'items': [
       \     {'command': ':e **/*<Tab>', 'description': 'Find files', 
-      \      'notes': 'With completion'},
-      \     {'command': 'gf', 'description': 'Goto file', 
-      \      'notes': 'Under cursor'},
+      \      'notes': 'With fuzzy completion'},
+      \     {'command': 'gf', 'description': 'Open file under cursor', 
+      \      'notes': 'Works with relative paths'},
       \   ]
       \ },
-      \ 'window': {
-      \   'title': 'Window Management',
+      \ 'navigation': {
+      \   'title': 'Navigation',
       \   'items': [
-      \     {'command': '<C-w>s', 'description': 'Split horizontal', 
-      \      'notes': 'Split window'},
-      \     {'command': '<C-w>v', 'description': 'Split vertical', 
-      \      'notes': 'Vsplit window'},
+      \     {'command': 'C-o', 'description': 'Jump back', 
+      \      'notes': 'Previous cursor position'},
+      \     {'command': 'C-i', 'description': 'Jump forward', 
+      \      'notes': 'Next cursor position'},
       \   ]
       \ }
       \}
 
-    " Mappings
-    nnoremap <leader>? :HelpPopupIndex<CR>
-    nnoremap <leader>?f :HelpPopupShow file<CR>
-    nnoremap <leader>?w :HelpPopupShow window<CR>
+    " Mapping
+    nnoremap <leader>h :HelpPopup<CR>
 
+Comprehensive configuration: >
+
+    let g:help_popup_content = {
+      \ 'file': {
+      \   'title': 'File Operations',
+      \   'items': [
+      \     {'command': ':e **/*<Tab>', 'description': 'Find and edit files', 
+      \      'notes': 'Uses Vim built-in fuzzy finding with tab completion'},
+      \     {'command': ':find filename', 'description': 'Search file in path', 
+      \      'notes': 'Requires set path+=** in vimrc'},
+      \     {'command': 'gf', 'description': 'Edit file under cursor', 
+      \      'notes': 'Works with relative paths, URLs, and includes'},
+      \     {'command': ':Explore', 'description': 'Open file explorer', 
+      \      'notes': 'Built-in netrw file browser'},
+      \   ]
+      \ },
+      \ 'windows': {
+      \   'title': 'Window Management',
+      \   'items': [
+      \     {'command': 'C-w s', 'description': 'Split horizontally', 
+      \      'notes': 'Creates new horizontal split'},
+      \     {'command': 'C-w v', 'description': 'Split vertically', 
+      \      'notes': 'Creates new vertical split'},
+      \     {'command': 'C-w w', 'description': 'Switch windows', 
+      \      'notes': 'Cycles through all windows'},
+      \     {'command': 'C-w q', 'description': 'Close window', 
+      \      'notes': 'Same as :q but for windows'},
+      \   ]
+      \ },
+      \ 'search': {
+      \   'title': 'Search & Replace',
+      \   'items': [
+      \     {'command': '/', 'description': 'Search forward', 
+      \      'notes': 'Use n/N to navigate results'},
+      \     {'command': '?', 'description': 'Search backward', 
+      \      'notes': 'Use n/N to navigate results'},
+      \     {'command': '*', 'description': 'Search word under cursor', 
+      \      'notes': 'Searches for exact word boundaries'},
+      \     {'command': ':%s/old/new/gc', 'description': 'Replace with confirmation', 
+      \      'notes': 'g=all, c=confirm each replacement'},
+      \   ]
+      \ }
+      \}
+
+==============================================================================
+9. CUSTOMIZATION                                      *help-popup-customization*
+
+Display Format~
+
+The plugin automatically formats content in a clean, organized layout: >
+
+    ┌─ File Operations ──────────────────────────────────────────┐
+    │                                                            │
+    │  :e **/*<Tab>                                              │
+    │    Find and edit files                                     │
+    │      Uses Vim's built-in fuzzy finding with completion    │
+    │                                                            │
+    │  gf                                                        │
+    │    Edit file under cursor                                  │
+    │      Works with relative paths, URLs, and includes        │
+    │                                                            │
+    └────────────────────────────────────────────────────────────┘
+
+Content Structure~
+
+Each help item should have:
+- `command`: The Vim command or key combination (required)
+- `description`: Brief explanation of what it does (required)
+- `notes`: Additional details, tips, or requirements (optional)
+
+Automatic Features~
+
+The plugin automatically handles:
+- Text wrapping for long content without breaking box layout
+- Proper indentation hierarchy (command → description → notes)
+- Multi-byte character display width calculation
+- Consistent 80-character popup width
+- Smart content validation
+
+Error Handling~
+
+The plugin validates configuration and displays helpful error messages:
+- Missing g:help_popup_content variable
+- Invalid data structure
+- Missing required fields in help items
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:
